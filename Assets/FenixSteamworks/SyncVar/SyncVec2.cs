@@ -1,8 +1,9 @@
 using System;
 using Steamworks;
 using UnityEngine;
+using FenixSteamworks.Structs;
 
-namespace FenixSteamworks
+namespace FenixSteamworks.SyncVar
 {
     public class SyncVec2 : MonoBehaviour
     {
@@ -17,19 +18,14 @@ namespace FenixSteamworks
         public bool compare = true;
 
         private Vector2 valueLastTick;
-
+        
         private void Start()
         {
             SendValue();
-            if (sync)
-            {
-                TickManager.Singleton.onTick.AddListener(Sync);
-            }
         }
 
-        public void Sync(ulong tick)
+        public void Sync()
         {
-            if (compare && valueLastTick == value) return;
             SendValue();
             valueLastTick = value;
         }
@@ -44,6 +40,15 @@ namespace FenixSteamworks
             foreach (Player player in NetworkManager.Instance.OtherPlayers)
             {
                 SteamNetworking.SendP2PPacket(player.UserID, bytes, (uint)bytes.Length, sendMode);
+            }
+        }
+        
+        private void FixedUpdate()
+        {
+            if (sync)
+            {
+                if (compare && valueLastTick == value) return;
+                Sync();
             }
         }
     }

@@ -5,19 +5,19 @@ using FenixSteamworks.Structs;
 
 namespace FenixSteamworks.SyncVar
 {
-    public class SyncVec3 : MonoBehaviour
+    public class SyncQuaternion : MonoBehaviour
     {
         [Header("Values")] [Tooltip("Key can not contain : or _")]
         public string key;
 
-        public Vector3 value;
+        public Quaternion value;
         [Header("Settings")] public EP2PSend sendMode = EP2PSend.k_EP2PSendUnreliable;
         [Tooltip("Sync every tick")] public bool sync = true;
 
         [Tooltip("If true will only sync if value is different than last tick")]
         public bool compare = true;
 
-        private Vector3 valueLastTick;
+        private Quaternion valueLastTick;
 
         private void Start()
         {
@@ -33,7 +33,7 @@ namespace FenixSteamworks.SyncVar
         public void SendValue()
         {
             //CreateMessage
-            string message = key + "_Vec3" + ":" + value.ToString();
+            string message = key + "_Q" + ":" + value.ToString();
             //Allocate bytes
             byte[] bytes = new byte[message.Length * sizeof(char)];
             Buffer.BlockCopy(message.ToCharArray(), 0, bytes, 0, bytes.Length);
@@ -51,5 +51,4 @@ namespace FenixSteamworks.SyncVar
             }
         }
     }
-
 }

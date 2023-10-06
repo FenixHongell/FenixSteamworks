@@ -1,8 +1,32 @@
-using System.Collections;
-using System.Collections.Generic;
+using Steamworks;
 using UnityEngine;
 
-public class NetworkedPlayer : MonoBehaviour
+namespace FenixSteamworks
 {
-    
+    public class NetworkedPlayer : MonoBehaviour
+    {
+        public GameObject lobbyPlayer;
+        public GameObject gamePlayer;
+        public Transform spawnPoint;
+        public GameObject currentPlayerGameObject;
+        public CSteamID playerID;
+
+        private void Start()
+        {
+            DontDestroyOnLoad(this.gameObject);
+        }
+
+        public void SpawnLobbyPlayer()
+        {
+            currentPlayerGameObject = Instantiate(lobbyPlayer, spawnPoint.position, spawnPoint.rotation);
+            currentPlayerGameObject.name = "Player: " + playerID;
+        }
+
+        public void SpawnGamePlayer()
+        {
+            currentPlayerGameObject = Instantiate(gamePlayer, spawnPoint.position, spawnPoint.rotation);
+            currentPlayerGameObject.name = "Player: " + playerID;
+        }
+    }
+
 }
