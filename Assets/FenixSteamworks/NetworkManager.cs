@@ -8,7 +8,7 @@ using UnityEngine.SceneManagement;
 
 namespace FenixSteamworks
 {
-    public class  NetworkManager : MonoBehaviour
+    public class NetworkManager : MonoBehaviour
     {
         public static NetworkManager Instance { get; private set; }
         protected Callback<P2PSessionRequest_t> _p2PSessionRequestCallback;
@@ -25,18 +25,20 @@ namespace FenixSteamworks
         public GameObject localPlayerObject;
         public GameObject otherPlayerObject;
         public string OnLeaveScene;
-        
+
         public CSteamID HostID { get; private set; }
+
         private void Awake()
         {
-            if (Instance != null && Instance != this) 
-            { 
-                Destroy(this); 
-            } 
-            else 
-            { 
-                Instance = this; 
-            } 
+            if (Instance != null && Instance != this)
+            {
+                Destroy(this);
+            }
+            else
+            {
+                Instance = this;
+            }
+
             DontDestroyOnLoad(this.gameObject);
         }
 
@@ -49,8 +51,9 @@ namespace FenixSteamworks
 
             CSteamID localUserID = SteamUser.GetSteamID();
 
-            LocalPlayer = new Player(SteamFriends.GetPersonaName(), localUserID, localPlayerObject.GetComponent<NetworkedPlayer>());
-            
+            LocalPlayer = new Player(SteamFriends.GetPersonaName(), localUserID,
+                localPlayerObject.GetComponent<NetworkedPlayer>());
+
             _p2PSessionRequestCallback = Callback<P2PSessionRequest_t>.Create(OnP2PSessionRequest);
         }
 
@@ -59,7 +62,7 @@ namespace FenixSteamworks
             SteamMatchmaking.CreateLobby(eLobbyType, maxConnections);
             HostID = LocalPlayer.UserID;
         }
-        
+
         //Call in intervals
         public void SetLobbyMembers()
         {
@@ -71,9 +74,11 @@ namespace FenixSteamworks
 
                 if (iUserID != LocalPlayer.UserID)
                 {
-                    GameObject otherPlayerWorldObject = Instantiate(otherPlayerObject, new Vector3(0, 0, 0), Quaternion.identity);
+                    GameObject otherPlayerWorldObject =
+                        Instantiate(otherPlayerObject, new Vector3(0, 0, 0), Quaternion.identity);
                     otherPlayerWorldObject.GetComponent<NetworkedPlayer>().playerID = iUserID;
-                    OtherPlayers.Add(new Player(SteamFriends.GetFriendPersonaName(iUserID),iUserID, otherPlayerWorldObject.GetComponent<NetworkedPlayer>()));
+                    OtherPlayers.Add(new Player(SteamFriends.GetFriendPersonaName(iUserID), iUserID,
+                        otherPlayerWorldObject.GetComponent<NetworkedPlayer>()));
                 }
             }
 
@@ -81,7 +86,7 @@ namespace FenixSteamworks
 
             HostID = SteamMatchmaking.GetLobbyOwner(currentLobby);
         }
-        
+
         private bool ExpectingClient(CSteamID steamID)
         {
             foreach (Player player in OtherPlayers)
@@ -89,19 +94,23 @@ namespace FenixSteamworks
                 if (player.UserID == steamID)
                 {
                     return true;
-                };
+                }
+
+                ;
             }
-            
+
             return false;
         }
-        
+
         void OnP2PSessionRequest(P2PSessionRequest_t request)
         {
             CSteamID clientId = request.m_steamIDRemote;
             if (ExpectingClient(clientId))
             {
                 SteamNetworking.AcceptP2PSessionWithUser(clientId);
-            } else {
+            }
+            else
+            {
                 Debug.LogWarning("Unexpected session request from " + clientId);
             }
         }
@@ -128,11 +137,11 @@ namespace FenixSteamworks
                 RemovePlayer(player);
             }
         }
-        
+
         private void FixedUpdate()
         {
             uint size;
-            
+
             while (SteamNetworking.IsP2PPacketAvailable(out size))
             {
                 // allocate buffer and needed variables
@@ -154,43 +163,114 @@ namespace FenixSteamworks
                         customMessageParser.Invoke(messageReceivedRaw);
                         return;
                     }
-                    
+
                     //x_y:z --> [x, y:z]
                     string[] messageReceived = messageReceivedRaw.Split("_");
-                    
+
                     //[x,y:z] i = 0 --> x
-                    string key = messageReceived[0]; 
-                    
+                    string key = messageReceived[0];
+
                     //[x,y:z] i = 1 --> _y:z --> [y, z]
                     messageReceived = messageReceived[1].Split(":");
-                    
+
                     // [y,z] i = 0 --> y
                     string type = messageReceived[0];
-                    
+
                     // [y,z] i = 1 --> z
                     string content = messageReceived[1];
 
                     if (playerNetworkSettings.playerKey == key)
                     {
+                        NetworkedPlayer other = OtherPlayers.Find(client => client.UserID == senderID).GamePlayer;
                         //TODO Write movement vs input system, sorta done depending on how the leave system works.
                         if (playerNetworkSettings.playerMovementType == type)
                         {
-                            //Move player
-                        } else if (playerNetworkSettings.playerRotationType == type)
+                            if (playerNetworkSettings.syncInput)
+                            {
+                                switch (content)
+                                {
+                                    case "w":
+                                        other.pressedKeys[0] = !other.pressedKeys[0];
+                                        break;
+                                    case "a":
+                                        other.pressedKeys[1] = !other.pressedKeys[1];
+                                        break;
+                                    case "s":
+                                        other.pressedKeys[2] = !other.pressedKeys[2];
+                                        break;
+                                    case "d":
+                                        other.pressedKeys[3] = !other.pressedKeys[3];
+                                        break;
+                                    #if UNITY_EDITOR
+                                    default:
+                                        Debug.LogWarning("Message out of corresponding key: " + content);
+                                        break;
+                                    #endif
+                                }
+                            }
+                            else
+                            {
+                                other.currentPlayerGameObject.transform.position = Vector3FromString(content);
+                            }
+                        }
+                        else if (playerNetworkSettings.playerRotationType == type)
                         {
-                            //Rotate player
+                            if (playerNetworkSettings.syncInput)
+                            {
+                                if (content.StartsWith("mpx"))
+                                {
+                                    other.mouseX = float.Parse(content.Split(".")[1]);
+                                } else if (content.StartsWith("mpy"))
+                                {
+                                    other.mouseY = float.Parse(content.Split(".")[1]);
+                                }
+                                #if UNITY_EDITOR
+                                else
+                                {
+                                    Debug.LogWarning("Message out of corresponding key: " + content);
+                                }
+                                #endif
+                            }
+                            else
+                            {
+                                other.currentPlayerGameObject.transform.rotation = QuaternionFromString(content);
+                            }
                         }
                         else
                         {
-                            playerNetworkSettings.playerActionEvents.Find(e => e.key == type).onMessage.Invoke(type,content,senderID);
+                            playerNetworkSettings.playerActionEvents.Find(e => e.key == type).onMessage
+                                .Invoke(type, content, senderID);
                         }
-                        
+
                         return;
                     }
 
                     P2PEvents.Find(e => e.key == key).onMessage.Invoke(type, content, senderID);
                 }
             }
+        }
+
+        public Vector3 Vector3FromString(string input)
+        {
+            input = input.Replace("(", "").Replace(")", "");
+
+            string[] values = input.Split(",");
+            
+            return new Vector3(float.Parse(values[0]), float.Parse(values[1]), float.Parse(values[2]));
+        }
+
+        public Vector2 Vector2FromString(string input)
+        {
+            input = input.Replace("(", "").Replace(")", "");
+            string[] values = input.Split(",");
+            return new Vector2(float.Parse(values[0]), float.Parse(values[1]));
+        }
+
+        public Quaternion QuaternionFromString(string input)
+        {
+            input = input.Replace("(", "").Replace(")", "");
+            string[] values = input.Split(",");
+            return new Quaternion(float.Parse(values[0]), float.Parse(values[1]),float.Parse(values[2]), float.Parse(values[3]));
         }
     }
 }

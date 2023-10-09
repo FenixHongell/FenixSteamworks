@@ -10,6 +10,16 @@ namespace FenixSteamworks
         public Transform spawnPoint;
         public GameObject currentPlayerGameObject;
         public CSteamID playerID;
+        
+        //Synced values
+
+        public float mouseX;
+
+        public float mouseY;
+        //0: W, 1: A, 2: S, 3: D
+        //Extend as needed
+        [HideInInspector]
+        public bool[] pressedKeys = new bool[4];
 
         private void Start()
         {
