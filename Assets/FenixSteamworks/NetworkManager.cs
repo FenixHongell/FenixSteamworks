@@ -25,9 +25,11 @@ namespace FenixSteamworks
         public GameObject localPlayerObject;
         public GameObject otherPlayerObject;
         public string OnLeaveScene;
+        public bool inGame;
 
         public CSteamID HostID { get; private set; }
 
+        
         private void Awake()
         {
             if (Instance != null && Instance != this)
@@ -95,8 +97,6 @@ namespace FenixSteamworks
                 {
                     return true;
                 }
-
-                ;
             }
 
             return false;
@@ -164,6 +164,8 @@ namespace FenixSteamworks
                         return;
                     }
 
+                    //x: Key, y: VarType, z: Value
+                    
                     //x_y:z --> [x, y:z]
                     string[] messageReceived = messageReceivedRaw.Split("_");
 
@@ -179,73 +181,26 @@ namespace FenixSteamworks
                     // [y,z] i = 1 --> z
                     string content = messageReceived[1];
 
-                    if (playerNetworkSettings.playerKey == key)
+                    if (playerNetworkSettings.playerMovementKey == key)
                     {
                         NetworkedPlayer other = OtherPlayers.Find(client => client.UserID == senderID).GamePlayer;
-                        //TODO Write movement vs input system, sorta done depending on how the leave system works.
-                        if (playerNetworkSettings.playerMovementType == type)
+                        other.NewPosition(Vector3FromString(content));
+                    } else if (playerNetworkSettings.playerRotationKey == key)
+                    {
+                        NetworkedPlayer other = OtherPlayers.Find(client => client.UserID == senderID).GamePlayer;
+                        other.NewRotation(QuaternionFromString(content));
+                    }
+                    else
+                    {
+                        if (playerNetworkSettings.playerActionKey == key)
                         {
-                            if (playerNetworkSettings.syncInput)
-                            {
-                                switch (content)
-                                {
-                                    case "w":
-                                        other.pressedKeys[0] = !other.pressedKeys[0];
-                                        break;
-                                    case "a":
-                                        other.pressedKeys[1] = !other.pressedKeys[1];
-                                        break;
-                                    case "s":
-                                        other.pressedKeys[2] = !other.pressedKeys[2];
-                                        break;
-                                    case "d":
-                                        other.pressedKeys[3] = !other.pressedKeys[3];
-                                        break;
-                                    #if UNITY_EDITOR
-                                    default:
-                                        Debug.LogWarning("Message out of corresponding key: " + content);
-                                        break;
-                                    #endif
-                                }
-                            }
-                            else
-                            {
-                                other.currentPlayerGameObject.transform.position = Vector3FromString(content);
-                            }
-                        }
-                        else if (playerNetworkSettings.playerRotationType == type)
-                        {
-                            if (playerNetworkSettings.syncInput)
-                            {
-                                if (content.StartsWith("mpx"))
-                                {
-                                    other.mouseX = float.Parse(content.Split(".")[1]);
-                                } else if (content.StartsWith("mpy"))
-                                {
-                                    other.mouseY = float.Parse(content.Split(".")[1]);
-                                }
-                                #if UNITY_EDITOR
-                                else
-                                {
-                                    Debug.LogWarning("Message out of corresponding key: " + content);
-                                }
-                                #endif
-                            }
-                            else
-                            {
-                                other.currentPlayerGameObject.transform.rotation = QuaternionFromString(content);
-                            }
+                            playerNetworkSettings.playerActionEvents.Find(e => e.key == type).onMessage?.Invoke(type, content, senderID);
                         }
                         else
                         {
-                            playerNetworkSettings.playerActionEvents.Find(e => e.key == type).onMessage
-                                .Invoke(type, content, senderID);
+                            P2PEvents.Find(e => e.key == key).onMessage?.Invoke(type, content, senderID);
                         }
-
-                        return;
                     }
-
-                    P2PEvents.Find(e => e.key == key).onMessage.Invoke(type, content, senderID);
                 }
             }
         }

@@ -11,16 +11,6 @@ namespace FenixSteamworks
         public GameObject currentPlayerGameObject;
         public CSteamID playerID;
         
-        //Synced values
-
-        public float mouseX;
-
-        public float mouseY;
-        //0: W, 1: A, 2: S, 3: D
-        //Extend as needed
-        [HideInInspector]
-        public bool[] pressedKeys = new bool[4];
-
         private void Start()
         {
             DontDestroyOnLoad(this.gameObject);
@@ -36,6 +26,16 @@ namespace FenixSteamworks
         {
             currentPlayerGameObject = Instantiate(gamePlayer, spawnPoint.position, spawnPoint.rotation);
             currentPlayerGameObject.name = "Player: " + playerID;
+        }
+
+        public void NewRotation(Quaternion newRot)
+        {
+            
+        }
+
+        public void NewPosition(Vector3 newPos)
+        {
+            
         }
     }
 
