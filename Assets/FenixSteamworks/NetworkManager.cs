@@ -4,31 +4,43 @@ using Steamworks;
 using UnityEngine;
 using UnityEngine.Events;
 using FenixSteamworks.Structs;
-using UnityEngine.SceneManagement;
 
 namespace FenixSteamworks
 {
     public class NetworkManager : MonoBehaviour
     {
+        #region HiddenValues
+        //Singleton
         public static NetworkManager Instance { get; private set; }
+        
+        //Callbacks
         protected Callback<P2PSessionRequest_t> _p2PSessionRequestCallback;
-        public bool isHost = false;
-        public string networkAddress = null;
-        public Player LocalPlayer;
-        public CSteamID currentLobby;
+        
+        //Stored Values
+        [HideInInspector] public Player LocalPlayer;
+        [HideInInspector] public CSteamID currentLobby;
+        [HideInInspector] public string networkAddress;
+        public CSteamID HostID { get; private set; }
         public List<Player> OtherPlayers { get; private set; }
-        public bool isInLobby = false;
-        public List<P2PEvent> P2PEvents;
-        public bool useStandardMessageSystem = true;
-        public UnityEvent<string> customMessageParser;
+        
+        #endregion
+        
+        //Settings
         public PlayerNetworkSettings playerNetworkSettings;
+        public List<P2PEvent> P2PEvents;
         public GameObject localPlayerObject;
         public GameObject otherPlayerObject;
         public string OnLeaveScene;
+        public GlobalActionSettings globalActionSettings;
+        
+        //State
+        public bool isInLobby;
+        public bool isHost;
         public bool inGame;
 
-        public CSteamID HostID { get; private set; }
-
+        //Custom Parser
+        public bool useStandardMessageSystem = true;
+        public UnityEvent<string> customMessageParser;
         
         private void Awake()
         {
@@ -163,25 +175,19 @@ namespace FenixSteamworks
                         customMessageParser.Invoke(messageReceivedRaw);
                         return;
                     }
-
-                    //x: Key, y: VarType, z: Value
                     
-                    //x_y:z --> [x, y:z]
-                    string[] messageReceived = messageReceivedRaw.Split("_");
+                    string[] messageReceived = messageReceivedRaw.Split(":");
 
-                    //[x,y:z] i = 0 --> x
                     string key = messageReceived[0];
+                    
+                    string type = messageReceived[1];
 
-                    //[x,y:z] i = 1 --> _y:z --> [y, z]
-                    messageReceived = messageReceived[1].Split(":");
-
-                    // [y,z] i = 0 --> y
-                    string type = messageReceived[0];
-
-                    // [y,z] i = 1 --> z
-                    string content = messageReceived[1];
-
-                    if (playerNetworkSettings.playerMovementKey == key)
+                    string content = messageReceived[2];
+                    
+                    if (globalActionSettings.globalActionKey == key)
+                    {
+                        globalActionSettings.globalActions.Find(a => a.key == type).onMessage?.Invoke(type,content,senderID);
+                    } else if (playerNetworkSettings.playerMovementKey == key)
                     {
                         NetworkedPlayer other = OtherPlayers.Find(client => client.UserID == senderID).GamePlayer;
                         other.NewPosition(Vector3FromString(content));
@@ -190,16 +196,13 @@ namespace FenixSteamworks
                         NetworkedPlayer other = OtherPlayers.Find(client => client.UserID == senderID).GamePlayer;
                         other.NewRotation(QuaternionFromString(content));
                     }
-                    else
+                    else if (playerNetworkSettings.playerActionKey == key)
                     {
-                        if (playerNetworkSettings.playerActionKey == key)
-                        {
-                            playerNetworkSettings.playerActionEvents.Find(e => e.key == type).onMessage?.Invoke(type, content, senderID);
-                        }
-                        else
-                        {
-                            P2PEvents.Find(e => e.key == key).onMessage?.Invoke(type, content, senderID);
-                        }
+                        playerNetworkSettings.playerActionEvents.Find(e => e.key == type).onMessage?.Invoke(type, content, senderID);
+                        
+                    } else
+                    {
+                        P2PEvents.Find(e => e.key == key).onMessage?.Invoke(type, content, senderID);
                     }
                 }
             }

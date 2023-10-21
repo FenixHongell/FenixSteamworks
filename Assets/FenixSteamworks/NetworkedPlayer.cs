@@ -14,6 +14,7 @@ namespace FenixSteamworks
         private void Start()
         {
             DontDestroyOnLoad(this.gameObject);
+            
         }
 
         public void SpawnLobbyPlayer()
