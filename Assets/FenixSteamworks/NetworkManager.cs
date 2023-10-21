@@ -190,11 +190,11 @@ namespace FenixSteamworks
                     } else if (playerNetworkSettings.playerMovementKey == key)
                     {
                         NetworkedPlayer other = OtherPlayers.Find(client => client.UserID == senderID).GamePlayer;
-                        other.NewPosition(Vector3FromString(content));
+                        other.NewPosition(MessageHandler.Vector3FromString(content));
                     } else if (playerNetworkSettings.playerRotationKey == key)
                     {
                         NetworkedPlayer other = OtherPlayers.Find(client => client.UserID == senderID).GamePlayer;
-                        other.NewRotation(QuaternionFromString(content));
+                        other.NewRotation(MessageHandler.QuaternionFromString(content));
                     }
                     else if (playerNetworkSettings.playerActionKey == key)
                     {
@@ -206,29 +206,6 @@ namespace FenixSteamworks
                     }
                 }
             }
-        }
-
-        public Vector3 Vector3FromString(string input)
-        {
-            input = input.Replace("(", "").Replace(")", "");
-
-            string[] values = input.Split(",");
-            
-            return new Vector3(float.Parse(values[0]), float.Parse(values[1]), float.Parse(values[2]));
-        }
-
-        public Vector2 Vector2FromString(string input)
-        {
-            input = input.Replace("(", "").Replace(")", "");
-            string[] values = input.Split(",");
-            return new Vector2(float.Parse(values[0]), float.Parse(values[1]));
-        }
-
-        public Quaternion QuaternionFromString(string input)
-        {
-            input = input.Replace("(", "").Replace(")", "");
-            string[] values = input.Split(",");
-            return new Quaternion(float.Parse(values[0]), float.Parse(values[1]),float.Parse(values[2]), float.Parse(values[3]));
         }
     }
 }

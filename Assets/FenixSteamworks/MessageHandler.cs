@@ -140,5 +140,28 @@ namespace FenixSteamworks
                 SteamNetworking.SendP2PPacket(player.UserID, bytes, (uint)bytes.Length, sendMode);
             }
         }
+        
+        public static Vector3 Vector3FromString(string input)
+        {
+            input = input.Replace("(", "").Replace(")", "");
+
+            string[] values = input.Split(",");
+            
+            return new Vector3(float.Parse(values[0]), float.Parse(values[1]), float.Parse(values[2]));
+        }
+
+        public static Vector2 Vector2FromString(string input)
+        {
+            input = input.Replace("(", "").Replace(")", "");
+            string[] values = input.Split(",");
+            return new Vector2(float.Parse(values[0]), float.Parse(values[1]));
+        }
+
+        public static Quaternion QuaternionFromString(string input)
+        {
+            input = input.Replace("(", "").Replace(")", "");
+            string[] values = input.Split(",");
+            return new Quaternion(float.Parse(values[0]), float.Parse(values[1]),float.Parse(values[2]), float.Parse(values[3]));
+        }
     }
 }
