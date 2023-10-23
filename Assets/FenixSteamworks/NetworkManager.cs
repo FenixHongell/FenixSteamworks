@@ -23,24 +23,29 @@ namespace FenixSteamworks
         public CSteamID HostID { get; private set; }
         public List<Player> OtherPlayers { get; private set; }
         
+        //Dynamic values
+        [HideInInspector] public ushort serverTick;
+        
+        //State
+        [HideInInspector] public bool isInLobby;
+        [HideInInspector] public bool isHost;
+        [HideInInspector] public bool inGame;
+        
         #endregion
         
         //Settings
+        [Header("Settings")]
         public PlayerNetworkSettings playerNetworkSettings;
         public List<P2PEvent> P2PEvents;
         public GameObject localPlayerObject;
         public GameObject otherPlayerObject;
         public string OnLeaveScene;
         public GlobalActionSettings globalActionSettings;
-        
-        //State
-        public bool isInLobby;
-        public bool isHost;
-        public bool inGame;
+        [Tooltip("Network request key for syncing the client tick with the server.")]
+        public string syncKey = "t";
 
         //Custom Parser
-        public bool useStandardMessageSystem = true;
-        public UnityEvent<string> customMessageParser;
+        [SerializeField] private ParserSettings parserSettings;
         
         private void Awake()
         {
@@ -170,9 +175,9 @@ namespace FenixSteamworks
 
                     string messageReceivedRaw = new string(chars, 0, chars.Length);
 
-                    if (useStandardMessageSystem == false)
+                    if (parserSettings.useCustomMessageSystem)
                     {
-                        customMessageParser.Invoke(messageReceivedRaw);
+                        parserSettings.customMessageParser.Invoke(messageReceivedRaw);
                         return;
                     }
                     
@@ -205,6 +210,11 @@ namespace FenixSteamworks
                         P2PEvents.Find(e => e.key == key).onMessage?.Invoke(type, content, senderID);
                     }
                 }
+            }
+
+            if (inGame)
+            {
+                serverTick++;
             }
         }
     }

@@ -84,6 +84,9 @@ namespace FenixSteamworks
             //Only client
             if (NetworkManager.Instance.isHost == false)
             {
+                //Set the the tick to 2 to compensate for delay
+                NetworkManager.Instance.serverTick = 2;
+                
                 NetworkManager.Instance.networkAddress =
                     SteamMatchmaking.GetLobbyData(new CSteamID(callback.m_ulSteamIDLobby), HostAddressKey);
                 OnLobbyEnteredEvent_Client.Invoke(callback);
