@@ -1,3 +1,4 @@
+using System;
 using Steamworks;
 using UnityEngine;
 
@@ -10,11 +11,10 @@ namespace FenixSteamworks
         public Transform spawnPoint;
         public GameObject currentPlayerGameObject;
         public CSteamID playerID;
-        
+
         private void Start()
         {
             DontDestroyOnLoad(this.gameObject);
-            
         }
 
         public void SpawnLobbyPlayer()
