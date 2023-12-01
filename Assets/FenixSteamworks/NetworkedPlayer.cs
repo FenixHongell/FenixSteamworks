@@ -6,37 +6,16 @@ namespace FenixSteamworks
 {
     public class NetworkedPlayer : MonoBehaviour
     {
-        public GameObject lobbyPlayer;
-        public GameObject gamePlayer;
-        public Transform spawnPoint;
-        public GameObject currentPlayerGameObject;
         public CSteamID playerID;
+
+        [HideInInspector] public string playerName;
+        [HideInInspector] public GameObject currentPlayerGameObject;
+        [HideInInspector] public bool isLocalPlayer;
 
         private void Start()
         {
+            if (currentPlayerGameObject == null) currentPlayerGameObject = this.gameObject;
             DontDestroyOnLoad(this.gameObject);
-        }
-
-        public void SpawnLobbyPlayer()
-        {
-            currentPlayerGameObject = Instantiate(lobbyPlayer, spawnPoint.position, spawnPoint.rotation);
-            currentPlayerGameObject.name = "Player: " + playerID;
-        }
-
-        public void SpawnGamePlayer()
-        {
-            currentPlayerGameObject = Instantiate(gamePlayer, spawnPoint.position, spawnPoint.rotation);
-            currentPlayerGameObject.name = "Player: " + playerID;
-        }
-
-        public void NewRotation(Quaternion newRot)
-        {
-            
-        }
-
-        public void NewPosition(Vector3 newPos)
-        {
-            
         }
     }
 

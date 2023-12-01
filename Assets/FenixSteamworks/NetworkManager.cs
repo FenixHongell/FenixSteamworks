@@ -1,9 +1,11 @@
 using System;
 using System.Collections.Generic;
+using FenixSteamworks.Enums;
 using Steamworks;
 using UnityEngine;
 using UnityEngine.Events;
 using FenixSteamworks.Structs;
+using UnityEngine.Serialization;
 
 namespace FenixSteamworks
 {
@@ -17,14 +19,16 @@ namespace FenixSteamworks
         protected Callback<P2PSessionRequest_t> _p2PSessionRequestCallback;
         
         //Stored Values
-        [HideInInspector] public Player LocalPlayer;
+        [HideInInspector] public NetworkedPlayer localPlayer;
         [HideInInspector] public CSteamID currentLobby;
         [HideInInspector] public string networkAddress;
         public CSteamID HostID { get; private set; }
-        public List<Player> OtherPlayers { get; private set; }
+        public List<NetworkedPlayer> OtherPlayers { get; private set; }
         
-        //Dynamic values
-        [HideInInspector] public ushort serverTick;
+        //Ticks
+        [HideInInspector] public ushort serverTick; //The tick on the server (synced)
+        [HideInInspector] public ushort clientTick = 0; //The tick on the client (not synced)
+        [HideInInspector] public ushort currentTick = 0; //Current iterated tick (not synced)
         
         //State
         [HideInInspector] public bool isInLobby;
@@ -35,20 +39,16 @@ namespace FenixSteamworks
         
         //Settings
         [Header("Settings")]
-        public PlayerNetworkSettings playerNetworkSettings;
-        public List<P2PEvent> P2PEvents;
         public GameObject localPlayerObject;
         public GameObject otherPlayerObject;
         public string OnLeaveScene;
-        public GlobalActionSettings globalActionSettings;
-        [Tooltip("Network request key for syncing the client tick with the server.")]
-        public string syncKey = "t";
-
-        //Custom Parser
-        [SerializeField] private ParserSettings parserSettings;
+        
+        [Header("P2P Messages")]
+        public List<P2PEvent> P2PEvents;
         
         private void Awake()
         {
+            //Singleton logic
             if (Instance != null && Instance != this)
             {
                 Destroy(this);
@@ -63,41 +63,52 @@ namespace FenixSteamworks
 
         private void Start()
         {
+            //Return if steam is closed
             if (!SteamManager.Initialized)
             {
                 return;
             }
 
+            //Get local steam user id
             CSteamID localUserID = SteamUser.GetSteamID();
 
-            LocalPlayer = new Player(SteamFriends.GetPersonaName(), localUserID,
-                localPlayerObject.GetComponent<NetworkedPlayer>());
-
+            //Set local player data
+            localPlayer = Instantiate(localPlayerObject).GetComponent<NetworkedPlayer>();
+            localPlayer.playerName = SteamFriends.GetPersonaName();
+            localPlayer.playerID = localUserID;
+            
             _p2PSessionRequestCallback = Callback<P2PSessionRequest_t>.Create(OnP2PSessionRequest);
         }
 
         public void CreateLobby(ELobbyType eLobbyType, ushort maxConnections)
         {
             SteamMatchmaking.CreateLobby(eLobbyType, maxConnections);
-            HostID = LocalPlayer.UserID;
         }
 
         //Call in intervals
         public void SetLobbyMembers()
         {
+            //Get number of users in lobby
             int usersInLobby = SteamMatchmaking.GetNumLobbyMembers(currentLobby);
-
-            for (int iUser = 0; iUser < usersInLobby; iUser++)
+            
+            //For each user
+            for (int userByIndex = 0; userByIndex < usersInLobby; userByIndex++)
             {
-                CSteamID iUserID = SteamMatchmaking.GetLobbyMemberByIndex(currentLobby, iUser);
+                //Get id from index
+                CSteamID userByIndexId = SteamMatchmaking.GetLobbyMemberByIndex(currentLobby, userByIndex);
 
-                if (iUserID != LocalPlayer.UserID)
+                if (userByIndexId != localPlayer.playerID)
                 {
-                    GameObject otherPlayerWorldObject =
-                        Instantiate(otherPlayerObject, new Vector3(0, 0, 0), Quaternion.identity);
-                    otherPlayerWorldObject.GetComponent<NetworkedPlayer>().playerID = iUserID;
-                    OtherPlayers.Add(new Player(SteamFriends.GetFriendPersonaName(iUserID), iUserID,
-                        otherPlayerWorldObject.GetComponent<NetworkedPlayer>()));
+                    //Return if player already exists in list
+                    if (OtherPlayers.Find(networkedPlayer =>
+                            networkedPlayer.playerID == userByIndexId) != null) return;
+                    
+                    NetworkedPlayer otherPlayerNetworkIdentity =
+                        Instantiate(otherPlayerObject).GetComponent<NetworkedPlayer>();
+                    otherPlayerNetworkIdentity.playerID = userByIndexId;
+                    otherPlayerNetworkIdentity.playerName = SteamFriends.GetFriendPersonaName(userByIndexId);
+                    
+                    OtherPlayers.Add(otherPlayerNetworkIdentity);
                 }
             }
 
@@ -108,9 +119,9 @@ namespace FenixSteamworks
 
         private bool ExpectingClient(CSteamID steamID)
         {
-            foreach (Player player in OtherPlayers)
+            foreach (NetworkedPlayer player in OtherPlayers)
             {
-                if (player.UserID == steamID)
+                if (player.playerID == steamID)
                 {
                     return true;
                 }
@@ -121,6 +132,7 @@ namespace FenixSteamworks
 
         void OnP2PSessionRequest(P2PSessionRequest_t request)
         {
+            //Get id from user that requested session
             CSteamID clientId = request.m_steamIDRemote;
             if (ExpectingClient(clientId))
             {
@@ -134,12 +146,12 @@ namespace FenixSteamworks
 
         public void RemoveAllPlayers()
         {
-            OtherPlayers = new List<Player>();
+            OtherPlayers = new List<NetworkedPlayer>();
         }
 
         public void RemovePlayer(CSteamID id)
         {
-            OtherPlayers.RemoveAll(player => player.UserID == id);
+            OtherPlayers.RemoveAll(player => player.playerID == id);
         }
 
         public void HandlePlayerLeft(CSteamID player)
@@ -150,7 +162,7 @@ namespace FenixSteamworks
             }
             else
             {
-                Destroy(OtherPlayers.Find(p => p.UserID == player).GamePlayer);
+                Destroy(OtherPlayers.Find(p => p.playerID == player).currentPlayerGameObject);
                 RemovePlayer(player);
             }
         }
@@ -161,54 +173,31 @@ namespace FenixSteamworks
 
             while (SteamNetworking.IsP2PPacketAvailable(out size))
             {
-                // allocate buffer and needed variables
+                //Allocate buffer and needed variables
                 var buffer = new byte[size];
                 uint bytesRead;
                 CSteamID senderID;
 
-                // read the message into the buffer
+                //Read the message into the buffer
                 if (SteamNetworking.ReadP2PPacket(buffer, size, out bytesRead, out senderID))
                 {
-                    // convert to string
+                    //Convert to string
                     char[] chars = new char[bytesRead / sizeof(char)];
                     Buffer.BlockCopy(buffer, 0, chars, 0, chars.Length);
 
+                    //Raw string of received message
                     string messageReceivedRaw = new string(chars, 0, chars.Length);
-
-                    if (parserSettings.useCustomMessageSystem)
-                    {
-                        parserSettings.customMessageParser.Invoke(messageReceivedRaw);
-                        return;
-                    }
                     
+                    //Split message to get key and content
                     string[] messageReceived = messageReceivedRaw.Split(":");
 
-                    string key = messageReceived[0];
+                    //Convert key to ushort from string
+                    ushort key = ushort.Parse(messageReceived[0]);
                     
-                    string type = messageReceived[1];
-
-                    string content = messageReceived[2];
+                    string content = messageReceived[1];
                     
-                    if (globalActionSettings.globalActionKey == key)
-                    {
-                        globalActionSettings.globalActions.Find(a => a.key == type).onMessage?.Invoke(type,content,senderID);
-                    } else if (playerNetworkSettings.playerMovementKey == key)
-                    {
-                        NetworkedPlayer other = OtherPlayers.Find(client => client.UserID == senderID).GamePlayer;
-                        other.NewPosition(MessageHandler.Vector3FromString(content));
-                    } else if (playerNetworkSettings.playerRotationKey == key)
-                    {
-                        NetworkedPlayer other = OtherPlayers.Find(client => client.UserID == senderID).GamePlayer;
-                        other.NewRotation(MessageHandler.QuaternionFromString(content));
-                    }
-                    else if (playerNetworkSettings.playerActionKey == key)
-                    {
-                        playerNetworkSettings.playerActionEvents.Find(e => e.key == type).onMessage?.Invoke(type, content, senderID);
-                        
-                    } else
-                    {
-                        P2PEvents.Find(e => e.key == key).onMessage?.Invoke(type, content, senderID);
-                    }
+                    //Find corresponding event and invoke it
+                    P2PEvents.Find(p2PEvent => (ushort) p2PEvent.key == key).onMessage?.Invoke(content, senderID);
                 }
             }
 
@@ -216,6 +205,16 @@ namespace FenixSteamworks
             {
                 serverTick++;
             }
+
+            if (isHost && serverTick % 200 == 0)
+            {
+                SyncTick();
+            }
+        }
+
+        private void SyncTick()
+        {
+            MessageHandler.SendMessageWithKey(MessageKeyType.Sync, serverTick, EP2PSend.k_EP2PSendUnreliable);
         }
     }
 }

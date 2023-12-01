@@ -25,6 +25,7 @@ namespace FenixSteamworks
 
         private void Awake()
         {
+            //Singleton logic
             if (Instance != null && Instance != this) 
             { 
                 Destroy(this); 
@@ -43,7 +44,7 @@ namespace FenixSteamworks
                 return;
             }
 
-
+            //Register callbacks
             LobbyCreated = Callback<LobbyCreated_t>.Create(OnLobbyCreated);
             JoinRequest = Callback<GameLobbyJoinRequested_t>.Create(OnJoinRequest);
             LobbyEntered = Callback<LobbyEnter_t>.Create(OnLobbyEntered);
@@ -52,7 +53,7 @@ namespace FenixSteamworks
 
         private void OnLobbyCreated(LobbyCreated_t callback)
         {
-            //Return if lobby not created succesfully
+            //Return if lobby not created successfully
             if (callback.m_eResult != EResult.k_EResultOK)
             {
                 return;
@@ -60,7 +61,7 @@ namespace FenixSteamworks
 
             NetworkManager.Instance.isHost = true;
 
-            //Set HostAdressKey and name of lobby
+            //Set HostAddressKey and name of lobby
             SteamMatchmaking.SetLobbyData(new CSteamID(callback.m_ulSteamIDLobby), HostAddressKey,
                 SteamUser.GetSteamID().ToString());
             SteamMatchmaking.SetLobbyData(new CSteamID(callback.m_ulSteamIDLobby), "name",
@@ -87,32 +88,40 @@ namespace FenixSteamworks
                 //Set the the tick to 2 to compensate for delay
                 NetworkManager.Instance.serverTick = 2;
                 
+                //Set networkAddress in manager
                 NetworkManager.Instance.networkAddress =
                     SteamMatchmaking.GetLobbyData(new CSteamID(callback.m_ulSteamIDLobby), HostAddressKey);
+                
                 OnLobbyEnteredEvent_Client.Invoke(callback);
             }
+            
             //Only Host
             else if (NetworkManager.Instance.isHost)
             {
                 OnLobbyEnteredEvent_Host.Invoke(callback);
             }
-
+            
             NetworkManager.Instance.SetLobbyMembers();
         }
 
         public void OnLobbyChatUpdate(LobbyChatUpdate_t lobbyChatUpdateT)
         {
+            //Check that message is in current lobby
             if (lobbyChatUpdateT.m_ulSteamIDLobby != (ulong) NetworkManager.Instance.currentLobby) return;
-            CSteamID member = new CSteamID(lobbyChatUpdateT.m_ulSteamIDUserChanged);
+            
+            //Get player affected by message
+            CSteamID player = new CSteamID(lobbyChatUpdateT.m_ulSteamIDUserChanged);
+            
+            //Deal with disconnects & players leaving
             if (lobbyChatUpdateT.m_rgfChatMemberStateChange ==
                 (uint) EChatMemberStateChange.k_EChatMemberStateChangeLeft)
             {
-                NetworkManager.Instance.HandlePlayerLeft(member);
+                NetworkManager.Instance.HandlePlayerLeft(player);
             }
             else if (lobbyChatUpdateT.m_rgfChatMemberStateChange ==
                      (uint) EChatMemberStateChange.k_EChatMemberStateChangeDisconnected)
             {
-                NetworkManager.Instance.HandlePlayerLeft(member);
+                NetworkManager.Instance.HandlePlayerLeft(player);
             }
 
             OnLobbyChatUpdateEvent.Invoke(lobbyChatUpdateT);
@@ -121,9 +130,12 @@ namespace FenixSteamworks
         public void LeaveLobby()
         {
             if (NetworkManager.Instance.isInLobby == false) return;
+            
             NetworkManager.Instance.isInLobby = false;
             SteamMatchmaking.LeaveLobby(NetworkManager.Instance.currentLobby);
+            //Reset current lobby id
             NetworkManager.Instance.currentLobby = CSteamID.Nil;
+            //Remove all players from game
             NetworkManager.Instance.RemoveAllPlayers();
             SceneManager.LoadScene(NetworkManager.Instance.OnLeaveScene);
         }
