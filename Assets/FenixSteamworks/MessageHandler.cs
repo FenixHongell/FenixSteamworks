@@ -9,10 +9,10 @@ namespace FenixSteamworks
     {
         public static void SendMessageWithKey(MessageKeyType key, string content, EP2PSend sendMode)
         {
-            if (content.Contains(":")) throw new Exception("Message can not contain the character ':'");
+            if (content.Contains(":") || content.Contains(";")) throw new Exception("Message can not contain the character ':' or ';'");
 
             //CreateMessage
-            string message = (ushort) key + ":" + content;
+            string message = (ushort) key + ":" + NetworkManager.Instance.ServerTick + ":" + content;
           
             SendP2PMessage(message,sendMode);
         }
@@ -20,7 +20,7 @@ namespace FenixSteamworks
         public static void SendMessageWithKey(MessageKeyType key, bool value, EP2PSend sendMode)
         {
             //CreateMessage
-            string message = (ushort) key + ":" + value.ToString();
+            string message = (ushort) key + ":" + NetworkManager.Instance.ServerTick + ":" + value.ToString();
           
             SendP2PMessage(message,sendMode);
         }
@@ -28,7 +28,7 @@ namespace FenixSteamworks
         public static void SendMessageWithKey(MessageKeyType key, float value, EP2PSend sendMode)
         {
             //CreateMessage
-            string message = (ushort) key + ":" + value;
+            string message = (ushort) key + ":" + NetworkManager.Instance.ServerTick + ":" + value;
           
             SendP2PMessage(message,sendMode);
         }
@@ -36,7 +36,7 @@ namespace FenixSteamworks
         public static void SendMessageWithKey(MessageKeyType key, Quaternion value, EP2PSend sendMode)
         {
             //CreateMessage
-            string message = (ushort) key + ":" + value.ToString();
+            string message = (ushort) key + ":" + NetworkManager.Instance.ServerTick + ":" + value.ToString();
           
             SendP2PMessage(message,sendMode);
         }
@@ -44,7 +44,7 @@ namespace FenixSteamworks
         public static void SendMessageWithKey(MessageKeyType key, Vector3 value, EP2PSend sendMode)
         {
             //CreateMessage
-            string message = (ushort) key + ":" + value.ToString();
+            string message = (ushort) key + ":" + NetworkManager.Instance.ServerTick + ":" + value.ToString();
           
             SendP2PMessage(message,sendMode);
         }
@@ -52,14 +52,14 @@ namespace FenixSteamworks
         public static void SendMessageWithKey(MessageKeyType key, Vector2 value, EP2PSend sendMode)
         {
             //CreateMessage
-            string message = (ushort) key + ":" + value.ToString();
+            string message = (ushort) key + ":" + NetworkManager.Instance.ServerTick + ":" + value.ToString();
           
             SendP2PMessage(message,sendMode);
         }
         
         public static void SendSingularMessageWithKey(CSteamID remote, MessageKeyType key, string content, EP2PSend sendMode)
         {
-            if (content.Contains(":")) throw new Exception("Message can not contain the character ':'");
+            if (content.Contains(":") || content.Contains(";")) throw new Exception("Message can not contain the character ':' or ';'");
 
             //CreateMessage
             string message = (ushort) key + ":" + content;

@@ -86,7 +86,7 @@ namespace FenixSteamworks
             if (NetworkManager.Instance.isHost == false)
             {
                 //Set the the tick to 2 to compensate for delay
-                NetworkManager.Instance.serverTick = 2;
+                NetworkManager.Instance.ServerTick = 2;
                 
                 //Set networkAddress in manager
                 NetworkManager.Instance.networkAddress =
@@ -137,7 +137,10 @@ namespace FenixSteamworks
             NetworkManager.Instance.currentLobby = CSteamID.Nil;
             //Remove all players from game
             NetworkManager.Instance.RemoveAllPlayers();
-            SceneManager.LoadScene(NetworkManager.Instance.OnLeaveScene);
+            //Set isHost to false when leaving if you are the host
+            if (NetworkManager.Instance.isHost) NetworkManager.Instance.isHost = false;
+            
+            SceneManager.LoadScene(NetworkManager.Instance.onLeaveScene);
         }
     }
 }

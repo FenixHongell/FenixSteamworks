@@ -10,7 +10,6 @@ namespace FenixSteamworks.Structs
     public struct P2PEvent
     {
         public MessageKeyType key;
-        [Tooltip("Args: Content, Sender")]
-        public UnityEvent<string, CSteamID> onMessage;
+        public UnityEvent<RecievedMessage> onMessage;
     }
 }

@@ -26,14 +26,37 @@ namespace FenixSteamworks
         public List<NetworkedPlayer> OtherPlayers { get; private set; }
         
         //Ticks
-        [HideInInspector] public ushort serverTick; //The tick on the server (synced)
-        [HideInInspector] public ushort clientTick = 0; //The tick on the client (not synced)
-        [HideInInspector] public ushort currentTick = 0; //Current iterated tick (not synced)
+        
+        private ushort _serverTick; 
+
+        public ushort ServerTick
+        {
+            get => _serverTick;
+            set
+            {
+                _serverTick = value;
+                InterpolationTick = (ushort) (value - TicksBetweenPositionUpdates);
+            }
+        }
+        [HideInInspector] public ushort InterpolationTick = 0; //Current iterated tick (not synced)
+        private ushort _ticksBetweenPositionUpdates = 2;
+
+        public ushort TicksBetweenPositionUpdates
+        {
+            get => _ticksBetweenPositionUpdates;
+            private set
+            {
+                _ticksBetweenPositionUpdates = value;
+                InterpolationTick = (ushort) (ServerTick - value);
+            }
+        }
         
         //State
         [HideInInspector] public bool isInLobby;
         [HideInInspector] public bool isHost;
         [HideInInspector] public bool inGame;
+
+        private List<NetworkedTransform> NetworkIdentities = new List<NetworkedTransform>();
         
         #endregion
         
@@ -41,7 +64,8 @@ namespace FenixSteamworks
         [Header("Settings")]
         public GameObject localPlayerObject;
         public GameObject otherPlayerObject;
-        public string OnLeaveScene;
+        public string onLeaveScene;
+        [SerializeField] private ushort tickDivergenceTolerance = 1;
         
         [Header("P2P Messages")]
         public List<P2PEvent> P2PEvents;
@@ -187,26 +211,34 @@ namespace FenixSteamworks
 
                     //Raw string of received message
                     string messageReceivedRaw = new string(chars, 0, chars.Length);
-                    
-                    //Split message to get key and content
-                    string[] messageReceived = messageReceivedRaw.Split(":");
 
-                    //Convert key to ushort from string
-                    ushort key = ushort.Parse(messageReceived[0]);
-                    
-                    string content = messageReceived[1];
+                    RecievedMessage msg = new RecievedMessage(messageReceivedRaw, senderID);
+
+                    if ((ushort) MessageKeyType.Transform == msg.key)
+                    {
+                        string[] messageParts = msg.content.Split(";");
+                        NetworkedTransform correspondingTransform = NetworkIdentities.Find(identity =>
+                            identity.networkId == int.Parse(messageParts[0]));
+                        correspondingTransform.NewPositionUpdate(msg.tick, MessageHandler.Vector3FromString(messageParts[1]), MessageHandler.QuaternionFromString(messageParts[2]));
+                        return;
+                    }
+
+                    if ((ushort) MessageKeyType.Sync == msg.key)
+                    {
+                        SetTick(msg.tick);
+                    }
                     
                     //Find corresponding event and invoke it
-                    P2PEvents.Find(p2PEvent => (ushort) p2PEvent.key == key).onMessage?.Invoke(content, senderID);
+                    P2PEvents.Find(p2PEvent => (ushort) p2PEvent.key == msg.key).onMessage?.Invoke(msg);
                 }
             }
 
             if (inGame)
             {
-                serverTick++;
+                ServerTick++;
             }
 
-            if (isHost && serverTick % 200 == 0)
+            if (isHost && ServerTick % 200 == 0)
             {
                 SyncTick();
             }
@@ -214,7 +246,21 @@ namespace FenixSteamworks
 
         private void SyncTick()
         {
-            MessageHandler.SendMessageWithKey(MessageKeyType.Sync, serverTick, EP2PSend.k_EP2PSendUnreliable);
+            MessageHandler.SendMessageWithKey(MessageKeyType.Sync, "tick", EP2PSend.k_EP2PSendUnreliable);
+        }
+
+        //Set tick on client side when syncing
+        public void SetTick(ushort serverTick)
+        {
+            if (Mathf.Abs(ServerTick - serverTick) > tickDivergenceTolerance)
+            {
+                ServerTick = serverTick;
+            }
+        }
+
+        public void RegisterNetworkIdentity(NetworkedTransform identity)
+        {
+            NetworkIdentities.Add(identity);
         }
     }
 }
