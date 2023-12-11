@@ -17,6 +17,8 @@ namespace FenixSteamworks.Structs
             tick = tick = ushort.Parse(messageReceived[1]);;
             
             content = messageReceived[2];
+            
+            isRelay = bool.Parse(messageReceived[3]);
 
             sender = _sender;
         }
@@ -24,5 +26,6 @@ namespace FenixSteamworks.Structs
         public ushort tick;
         public string content;
         public CSteamID sender;
+        public bool isRelay;
     }
 }

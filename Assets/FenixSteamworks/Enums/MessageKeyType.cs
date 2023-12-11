@@ -10,9 +10,10 @@ namespace FenixSteamworks.Enums
         PlayerRotation = 2,
         PlayerAction = 3,
         General = 4,
-        Relay = 5,
         Scene = 6,
         Broadcast = 7,
         Transform = 8,
+        PlayerGameObjectChange = 9,
+        ChatMessageSent = 10,
     }
 }

@@ -42,13 +42,12 @@ namespace FenixSteamworks
             {
                 if (NetworkManager.Instance.isHost)
                 {
-                    MessageHandler.SendMessageWithKey(MessageKeyType.Transform,  networkId + ";" + currentPosition + ";" + currentRotation, sendMode);
+                    MessageHandler.SendMessageWithKey(MessageKeyType.Transform,  networkId + ";" + currentPosition + ";" + currentRotation, sendMode, false);
                 }
                 else
                 {
                     MessageHandler.SendSingularMessageWithKey(NetworkManager.Instance.HostID,MessageKeyType.Transform, networkId + ";" + currentPosition + ";" + currentRotation, sendMode);
                 }
-                
             }
         }
 

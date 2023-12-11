@@ -3,9 +3,7 @@ using System.Collections.Generic;
 using FenixSteamworks.Enums;
 using Steamworks;
 using UnityEngine;
-using UnityEngine.Events;
 using FenixSteamworks.Structs;
-using UnityEngine.Serialization;
 
 namespace FenixSteamworks
 {
@@ -186,12 +184,27 @@ namespace FenixSteamworks
             }
             else
             {
-                Destroy(OtherPlayers.Find(p => p.playerID == player).currentPlayerGameObject);
+                Destroy(OtherPlayers.Find(p => p.playerID == player).currentPlayerContainerGameObject);
                 RemovePlayer(player);
             }
         }
 
         private void FixedUpdate()
+        {
+            ReadMessages();
+
+            if (inGame)
+            {
+                ServerTick++;
+            }
+
+            if (isHost && ServerTick % 200 == 0)
+            {
+                SyncTick();
+            }
+        }
+
+        private void ReadMessages()
         {
             uint size;
 
@@ -216,6 +229,7 @@ namespace FenixSteamworks
 
                     if ((ushort) MessageKeyType.Transform == msg.key)
                     {
+                        //No need for relay since all networked transforms have static ids
                         string[] messageParts = msg.content.Split(";");
                         NetworkedTransform correspondingTransform = NetworkIdentities.Find(identity =>
                             identity.networkId == int.Parse(messageParts[0]));
@@ -226,27 +240,66 @@ namespace FenixSteamworks
                     if ((ushort) MessageKeyType.Sync == msg.key)
                     {
                         SetTick(msg.tick);
+                        return;
+                    }
+
+                    if ((ushort) MessageKeyType.PlayerGameObjectChange == msg.key)
+                    {
+                        if (isHost)
+                        {
+                            MessageHandler.SendMessageWithKey(MessageKeyType.PlayerGameObjectChange, msg.content + ";" + msg.sender, EP2PSend.k_EP2PSendReliable, true);
+                            OtherPlayers.Find(otherPlayer => otherPlayer.playerID == msg.sender)?.SetCurrentPlayerGameObject(int.Parse(msg.content), false);
+                        }
+                        else
+                        {
+                            if (!msg.isRelay)
+                            {
+                                //if not relay then the host has changed its player character
+                                OtherPlayers.Find(otherPlayer => otherPlayer.playerID == msg.sender)?.SetCurrentPlayerGameObject(int.Parse(msg.content), false);
+                            }
+                            else
+                            {
+                                //if relay then get the corresponding player
+                                OtherPlayers.Find(otherPlayer => otherPlayer.playerID == new CSteamID(ulong.Parse(msg.content.Split(";")[1])))?.SetCurrentPlayerGameObject(int.Parse(msg.content.Split(";")[0]), false);
+                            }
+                        }
+
+                        return;
+                    }
+
+                    if ((ushort) MessageKeyType.ChatMessageSent == msg.key)
+                    {
+                        string[] contentParts = msg.content.Split(";");
+                        if (isHost)
+                        {
+                            MessageHandler.SendMessageWithKey(MessageKeyType.ChatMessageSent, msg.content + ";" + msg.sender, EP2PSend.k_EP2PSendReliable, true);
+                            msg.content = contentParts[0];
+                            ChatHandler.Instance.AppendChatMessage(msg, (MessageChannel) ushort.Parse(contentParts[1]));
+                        }
+                        else
+                        {
+                            msg.content = contentParts[0];
+                            if (!msg.isRelay)
+                            {
+                                ChatHandler.Instance.AppendChatMessage(msg, (MessageChannel) ushort.Parse(contentParts[1]));
+                            }
+                            else
+                            {
+                                msg.sender = new CSteamID(ulong.Parse(contentParts[2]));
+                                ChatHandler.Instance.AppendChatMessage(msg, (MessageChannel) ushort.Parse(contentParts[1]));
+                            }
+                        }
                     }
                     
                     //Find corresponding event and invoke it
                     P2PEvents.Find(p2PEvent => (ushort) p2PEvent.key == msg.key).onMessage?.Invoke(msg);
                 }
             }
-
-            if (inGame)
-            {
-                ServerTick++;
-            }
-
-            if (isHost && ServerTick % 200 == 0)
-            {
-                SyncTick();
-            }
         }
 
         private void SyncTick()
         {
-            MessageHandler.SendMessageWithKey(MessageKeyType.Sync, "tick", EP2PSend.k_EP2PSendUnreliable);
+            MessageHandler.SendMessageWithKey(MessageKeyType.Sync, "tick", EP2PSend.k_EP2PSendUnreliable, false);
         }
 
         //Set tick on client side when syncing
