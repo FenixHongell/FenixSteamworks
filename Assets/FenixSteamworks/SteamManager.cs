@@ -156,7 +156,9 @@ public class SteamManager : MonoBehaviour {
 		if (!m_bInitialized) {
 			return;
 		}
-
+		
+		SteamUser.StopVoiceRecording();
+		
 		SteamAPI.Shutdown();
 	}
 

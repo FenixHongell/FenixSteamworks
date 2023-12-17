@@ -290,6 +290,13 @@ namespace FenixSteamworks
                             }
                         }
                     }
+
+                    if ((ushort) MessageKeyType.Voice == msg.key)
+                    {
+                        string[] contentParts = msg.content.Split(";");
+                        
+                        OtherPlayers.Find(op => op.playerID == msg.sender).currentPlayerContainerGameObject.GetComponent<VoiceChatPlayer>().PlayAudioFromSource(Convert.FromBase64String(contentParts[0]), uint.Parse(contentParts[1]));
+                    }
                     
                     //Find corresponding event and invoke it
                     P2PEvents.Find(p2PEvent => (ushort) p2PEvent.key == msg.key).onMessage?.Invoke(msg);
