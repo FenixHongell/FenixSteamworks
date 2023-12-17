@@ -289,6 +289,8 @@ namespace FenixSteamworks
                                 ChatHandler.Instance.AppendChatMessage(msg, (MessageChannel) ushort.Parse(contentParts[1]));
                             }
                         }
+
+                        return;
                     }
 
                     if ((ushort) MessageKeyType.Voice == msg.key)
@@ -296,6 +298,8 @@ namespace FenixSteamworks
                         string[] contentParts = msg.content.Split(";");
                         
                         OtherPlayers.Find(op => op.playerID == msg.sender).currentPlayerContainerGameObject.GetComponent<VoiceChatPlayer>().PlayAudioFromSource(Convert.FromBase64String(contentParts[0]), uint.Parse(contentParts[1]));
+
+                        return;
                     }
                     
                     //Find corresponding event and invoke it
