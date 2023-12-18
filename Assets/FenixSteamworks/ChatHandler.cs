@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using FenixSteamworks.Enums;
 using FenixSteamworks.Structs;
@@ -9,8 +10,9 @@ namespace FenixSteamworks
     public class ChatHandler : MonoBehaviour
     {
         public static ChatHandler Instance { get; private set; }
+        [HideInInspector]
         public List<ChatMessage> Chat;
-        
+
         private void Awake()
         {
             //Singleton logic
@@ -30,11 +32,11 @@ namespace FenixSteamworks
         {
             if (NetworkManager.Instance.isHost)
             {
-                MessageHandler.SendMessageWithKey(MessageKeyType.ChatMessageSent, content + ";" + messageChannel, EP2PSend.k_EP2PSendReliable, false);
+                MessageHandler.SendMessageWithKey(MessageKeyType.ChatMessageSent, content + ";" + (ushort) messageChannel, EP2PSend.k_EP2PSendReliable, false);
             }
             else
             {
-                MessageHandler.SendSingularMessageWithKey(NetworkManager.Instance.HostID, MessageKeyType.ChatMessageSent, content + ";" + messageChannel, EP2PSend.k_EP2PSendReliable);
+                MessageHandler.SendSingularMessageWithKey(NetworkManager.Instance.HostID, MessageKeyType.ChatMessageSent, content + ";" + (ushort) messageChannel, EP2PSend.k_EP2PSendReliable);
             }
         }
 

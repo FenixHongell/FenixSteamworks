@@ -50,7 +50,7 @@ namespace FenixSteamworks
         }
         
         //State
-        [HideInInspector] public bool isInLobby;
+        [HideInInspector] public bool isInLobby; //Network lobby, not game lobby
         [HideInInspector] public bool isHost;
         [HideInInspector] public bool inGame;
 
@@ -60,9 +60,9 @@ namespace FenixSteamworks
         
         //Settings
         [Header("Settings")]
-        public GameObject localPlayerObject;
-        public GameObject otherPlayerObject;
-        public string onLeaveScene;
+        public GameObject localPlayerObject; //Local player container
+        public GameObject otherPlayerObject; //Initial object for non-local players
+        public string onLeaveScene; //Scene loaded when leaving/disconnecting
         [SerializeField] private ushort tickDivergenceTolerance = 1;
         
         [Header("P2P Messages")]
@@ -102,12 +102,13 @@ namespace FenixSteamworks
             _p2PSessionRequestCallback = Callback<P2PSessionRequest_t>.Create(OnP2PSessionRequest);
         }
 
+        //Void to call when the player wants to create a lobby
         public void CreateLobby(ELobbyType eLobbyType, ushort maxConnections)
         {
             SteamMatchmaking.CreateLobby(eLobbyType, maxConnections);
         }
 
-        //Call in intervals
+        //Check for new players
         public void SetLobbyMembers()
         {
             //Get number of users in lobby
@@ -125,11 +126,13 @@ namespace FenixSteamworks
                     if (OtherPlayers.Find(networkedPlayer =>
                             networkedPlayer.playerID == userByIndexId) != null) return;
                     
+                    //Setup player
                     NetworkedPlayer otherPlayerNetworkIdentity =
                         Instantiate(otherPlayerObject).GetComponent<NetworkedPlayer>();
                     otherPlayerNetworkIdentity.playerID = userByIndexId;
                     otherPlayerNetworkIdentity.playerName = SteamFriends.GetFriendPersonaName(userByIndexId);
                     
+                    //Add player to list
                     OtherPlayers.Add(otherPlayerNetworkIdentity);
                 }
             }
@@ -139,6 +142,7 @@ namespace FenixSteamworks
             HostID = SteamMatchmaking.GetLobbyOwner(currentLobby);
         }
 
+        //Check if client is in lobby
         private bool ExpectingClient(CSteamID steamID)
         {
             foreach (NetworkedPlayer player in OtherPlayers)
@@ -178,12 +182,14 @@ namespace FenixSteamworks
 
         public void HandlePlayerLeft(CSteamID player)
         {
+            //If host left then disconnect
             if (HostID == player)
             {
                 LobbyManager.Instance.LeaveLobby();
             }
             else
             {
+                //Remove player that disconnected
                 Destroy(OtherPlayers.Find(p => p.playerID == player).currentPlayerContainerGameObject);
                 RemovePlayer(player);
             }
@@ -191,6 +197,7 @@ namespace FenixSteamworks
 
         private void FixedUpdate()
         {
+            //Read incoming packets
             ReadMessages();
 
             if (inGame)
@@ -237,14 +244,16 @@ namespace FenixSteamworks
                         return;
                     }
 
+                    //Check if message is a tick sync
                     if ((ushort) MessageKeyType.Sync == msg.key)
                     {
                         SetTick(msg.tick);
                         return;
                     }
-
+                    
                     if ((ushort) MessageKeyType.PlayerGameObjectChange == msg.key)
                     {
+                        // if client performed action relay to other clients
                         if (isHost)
                         {
                             MessageHandler.SendMessageWithKey(MessageKeyType.PlayerGameObjectChange, msg.content + ";" + msg.sender, EP2PSend.k_EP2PSendReliable, true);
@@ -270,6 +279,8 @@ namespace FenixSteamworks
                     if ((ushort) MessageKeyType.ChatMessageSent == msg.key)
                     {
                         string[] contentParts = msg.content.Split(";");
+                        
+                        // if client performed action relay to other clients
                         if (isHost)
                         {
                             MessageHandler.SendMessageWithKey(MessageKeyType.ChatMessageSent, msg.content + ";" + msg.sender, EP2PSend.k_EP2PSendReliable, true);
@@ -308,13 +319,14 @@ namespace FenixSteamworks
             }
         }
 
+        //Send tick sync message
         private void SyncTick()
         {
             MessageHandler.SendMessageWithKey(MessageKeyType.Sync, "tick", EP2PSend.k_EP2PSendUnreliable, false);
         }
 
         //Set tick on client side when syncing
-        public void SetTick(ushort serverTick)
+        private void SetTick(ushort serverTick)
         {
             if (Mathf.Abs(ServerTick - serverTick) > tickDivergenceTolerance)
             {

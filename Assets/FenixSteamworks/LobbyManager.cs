@@ -104,7 +104,7 @@ namespace FenixSteamworks
             NetworkManager.Instance.SetLobbyMembers();
         }
 
-        public void OnLobbyChatUpdate(LobbyChatUpdate_t lobbyChatUpdateT)
+        private void OnLobbyChatUpdate(LobbyChatUpdate_t lobbyChatUpdateT)
         {
             //Check that message is in current lobby
             if (lobbyChatUpdateT.m_ulSteamIDLobby != (ulong) NetworkManager.Instance.currentLobby) return;
