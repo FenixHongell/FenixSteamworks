@@ -1,6 +1,8 @@
 # FenixSteamworks
 This project is still in its early stages and should NOT be used in production. Bugs and errors are to be expected.
 
+## License: MIT
+
 ## About
 FenixSteamworks is a C# wrapper for Steamworks.NET. FenixSteamworks is a package containing multiple easily-configurable scripts for easy prototyping.  
 
